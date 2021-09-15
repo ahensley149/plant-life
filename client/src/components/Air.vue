@@ -48,12 +48,15 @@ export default {
       insideTemps: [],
       outsideTemps: [],
       insideHumids: [],
+      timestamps: [],
       options: {
         chart: {
           id: 'vuechart-example',
         },
         xaxis: {
-          categories: [1],
+          type: 'category',
+          categories: [],
+          tickPlacement: 'between',
         },
       },
       series: [],
@@ -67,6 +70,7 @@ export default {
           this.insideTemps = res.data.inside_temps;
           this.outsideTemps = res.data.outside_temps;
           this.insideHumids = res.data.inside_humids;
+          this.options.xaxis.categories = res.data.timestamps;
           this.series = [
             {
               name: 'Inside Temp',
@@ -80,9 +84,9 @@ export default {
               name: 'Outside Temp',
               data: this.outsideTemps,
             },
-            this.tempRange = [this.enviro.min_temp, this.enviro.max_temp],
-            this.humidRange = [this.enviro.min_humid, this.enviro.max_humid],
           ];
+          this.tempRange = [this.enviro.min_temp, this.enviro.max_temp];
+          this.humidRange = [this.enviro.min_humid, this.enviro.max_humid];
         })
         .catch((error) => {
           // eslint-disable-next-line

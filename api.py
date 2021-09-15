@@ -8,9 +8,12 @@ CORS(app, resources={r'/*': {'origins': '*'}})
 @app.route('/enviros')
 def list_environments():
     """Index of all environments for updating and deleting"""
-    enviros = Enviro.query.all()
+    enviros = {}
+    enviro_names = Enviro.query.with_entities(Enviro.id, Enviro.name).all()
     enviro = Enviro.query.get_or_404(1)
-    return jsonify({ 'enviros': [env.to_dict() for env in enviros],
+    for env in enviro_names:
+        enviros[env.id] = env.name
+    return jsonify({ 'enviros': enviros,
         'enviro': [enviro.to_dict()]})
 
 @app.route('/update_climate/<int:id>', methods=['POST'])
@@ -138,8 +141,41 @@ def list_systems():
 @app.route('/system/<int:id>', methods=['GET', 'DELETE'])
 def system_details(id):
     if request.method == 'GET':
+        light = {
+            'start_time': '00:00',
+            'end_time': '00:00'
+        }
+        ec = []
+        ph = []
+        water_temp = []
         system = System.query.get(id)
-        return jsonify({ 'system': [system.to_dict()] })
+        crops = Crop.query.filter(Crop.system_id == id, Crop.summary == None).all()
+        water_logs = Water.query.filter(Water.system_id == id, Water.timestamp > datetime.today() - timedelta(days=30)).all()
+        lights = Light.query.filter(Light.system_id == id)
+        for light_ in lights:
+            light['start_time'] = datetime.strftime(light_.start_time, '%H:%M')
+            light['end_time'] = datetime.strftime(light_.end_time, '%H:%M')
+        for water in water_logs:
+            ec.append(water.ec)
+            ph.append(water.ph)
+            water_temp.append(water.temp)
+        milestones = []
+        upcoming_milestones = []
+        for crop in crops:
+            milestones.append(crop.milestones)
+            for milestone in crop.milestones:
+                if milestone.actual_date == None:
+                    if milestone.projected_date < (date.today() + timedelta(days=10)):
+                        upcoming_milestones.append(milestone)
+        return jsonify({ 'system': [system.to_dict()],
+            'crops': [crop.to_dict() for crop in crops],
+            'milestones': [upcoming.to_dict() for upcoming in upcoming_milestones],
+            'light': light,
+            'ec': ec,
+            'ph': ph,
+            'water_temp': water_temp,
+            'water': [water_log.to_dict() for water_log in water_logs]
+        })
     elif request.method == 'DELETE':
         system = System.query.get_or_404(id)
         try:
@@ -190,11 +226,149 @@ def add_air_log(log):
     except:
         return 'There was an issue'
 
-@app.route('/plants')
+@app.route('/plants', methods=['GET', 'POST'])
 def list_plants():
     """Index of all plants for updating and deleting"""
-    plants = Plant.query.all()
-    return jsonify({ 'plants': [plant.to_dict() for plant in plants]})
+    if request.method == 'GET':
+        plants = Plant.query.all()
+        plant_names = {}
+        categories = PlantCategory.query.all()
+        crops = Crop.query.all()
+        plant_list = Plant.query.with_entities(Plant.id,Plant.name).all()
+        for plant in plant_list:
+            plant_names[plant.id] = plant.name
 
+        return jsonify({ 'plants': [plant.to_dict() for plant in plants],
+          'categories': [cat.to_dict() for cat in categories],
+          'crops': [crop.to_dict() for crop in crops],
+          'plant_names': plant_names
+          
+        })
+    elif request.method == 'POST':
+        post_data = request.get_json()
+        name = post_data.get('name')
+        category = post_data.get('category')
+        germ_time = post_data.get('germ_time')
+        transplant_time = post_data.get('transplant_time')
+        flower_time = post_data.get('flower_time')
+        harvest_time = post_data.get('harvest_time')
+        ideal_ec = post_data.get('ideal_ec')
+        ideal_ph = post_data.get('ideal_ph')
+        ideal_temp = post_data.get('ideal_temp')
+        ideal_humid = post_data.get('ideal_humid')
+        ideal_light_hours = post_data.get('ideal_light_hours')    
+        ideal_season = post_data.get('ideal_season')
+        ideal_medium = post_data.get('ideal_medium')
+        ideal_moisture = post_data.get('ideal_moisture')
+        support_type = post_data.get('support_type')
+        pruning = post_data.get('pruning')
+        common_issues = post_data.get('common_issues')
+
+        new_plant = Plant(name=name,category=category,germ_time=germ_time,transplant_time=transplant_time,
+          flower_time=flower_time,harvest_time=harvest_time,ideal_ec=ideal_ec,ideal_ph=ideal_ph,
+          ideal_temp=ideal_temp,ideal_humid=ideal_humid,ideal_light_hours=ideal_light_hours,
+          ideal_season=ideal_season,ideal_medium=ideal_medium,ideal_moisture=ideal_moisture,
+          support_type=support_type,pruning=pruning,common_issues=common_issues)
+        try:
+            db.session.add(new_plant)
+            db.session.commit()
+            return 'Success'
+        except:
+            return 'There was an issue adding this plant'
+
+@app.route('/crops', methods=['GET', 'POST'])
+def crops():
+    """Index of all plants for updating and deleting"""
+    if request.method == 'GET':
+        plant_names = {}
+        crops = Crop.query.all()
+        plant_list = Plant.query.with_entities(Plant.id,Plant.name).all()
+        for plant in plant_list:
+            plant_names[plant.id] = plant.name
+        return jsonify({ 'crops': [crop.to_dict() for crop in crops],
+          'plant_names': plant_names
+        })
+    elif request.method == 'POST':
+        post_data = request.get_json()
+        tag = post_data.get('tag')
+        plant_id = post_data.get('plant_id')
+        system_id = post_data.get('system_id')
+        source = post_data.get('source')
+        start_date = post_data.get('start_date')
+        
+        plant_milestones = Plant.query.get(plant_id)
+
+        new_crop = Crop(tag=tag,plant_id=plant_id,system_id=system_id,source=source,
+          start_date=start_date)
+        try:
+            db.session.add(new_crop)
+            db.session.commit()
+            msg = add_crop_milestones(plant_milestones)
+            return msg
+        except:
+            msg = add_crop_milestones(plant_milestones)
+            return msg
+
+def add_crop_milestones(plant_milestones):
+    crop = Crop.query.with_entities(Crop.id, Crop.tag, Crop.start_date, Crop.source).order_by(Crop.id.desc()).first()
+    crop_id = crop.id
+    germ_time = plant_milestones.germ_time
+    transplant_time = plant_milestones.transplant_time
+    flower_time = plant_milestones.flower_time
+    harvest_time = plant_milestones.harvest_time
+    plant = plant_milestones.name
+    plant_id = plant_milestones.id
+    tag_color = crop.tag
+    
+    if crop.source == 'Seed':
+        projected_germ = crop.start_date + timedelta(days=germ_time)
+        germ_milestone = CropMilestone(crop_id=crop_id, plant_name=plant, plant_id=plant_id, tag=tag_color, milestone='Germinate', projected_date=projected_germ)
+    if transplant_time != 0:
+        projected_transplant = crop.start_date + timedelta(days=transplant_time)
+        transplant_milestone = CropMilestone(crop_id=crop_id, plant_name=plant, plant_id=plant_id, tag=tag_color, milestone='Transplant', projected_date=projected_transplant)
+    if flower_time != 0:
+        projected_flower = crop.start_date + timedelta(days=flower_time)
+        flower_milestone = CropMilestone(crop_id=crop_id, plant_name=plant, plant_id=plant_id, tag=tag_color, milestone='Flower', projected_date=projected_flower)
+    if harvest_time != 0:
+        projected_harvest = crop.start_date + timedelta(days=harvest_time)
+        harvest_milestone = CropMilestone(crop_id=crop_id, plant_name=plant, plant_id=plant_id, tag=tag_color, milestone='Harvest', projected_date=projected_harvest)
+    
+    try:
+        if crop.source == 'Seed':
+            db.session.add(germ_milestone)
+        if transplant_time != 0:
+            db.session.add(transplant_milestone)
+        if flower_time != 0:
+            db.session.add(flower_milestone)
+        if harvest_time != 0:
+            db.session.add(harvest_milestone)
+        db.session.commit()
+        return 'Plant Milestones Added'
+    except:
+        return datetime.strftime(projected_germ)
+
+@app.route('/milestone/<int:id>', methods=['GET', 'POST'])
+def updateMilestone(id):
+    if request.method == 'POST':
+        today = date.today()
+        milestone = CropMilestone.query.get(id)
+        crop = Crop.query.get(milestone.crop_id)
+        if milestone.milestone == 'Germinate':
+            crop.germ_date = today
+        elif milestone.milestone == 'Transplant':
+            crop.transplant_date = today
+        elif milestone.milestone == 'Flower':
+            crop.flower_date = today
+        elif milestone.milestone == 'Harvest':
+            crop.harvest_date = today
+        milestone.actual_date = today
+
+        try:
+            db.session.commit()
+            return 'Success'
+        except:
+            return 'There was an issue'
+
+            
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0')

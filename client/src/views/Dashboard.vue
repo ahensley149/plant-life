@@ -3,9 +3,16 @@
     <div class="dashboard grid-3">
       <AirChart :enviro="enviro[0]"></AirChart>
       <Systems v-for="(system, index) in enviro[0].systems" :key="index"
-        :systemId="system.id" :systemOrder="index">
+        :systemId="system.id"
+        :systemOrder="index"
+        @systemIndex="onClickSystem"
+        :toggle="indexSystems">
       </Systems>
       <EquipmentChart :enviroId="enviro[0].id"></EquipmentChart>
+        <System v-model="enviro[0].systems[system]"
+          :toggle="viewSystem"
+          @close-sys-view="closeSystem">
+        </System>
     </div>
     <b-modal ref="addSystemModal"
           id="system-modal"
@@ -51,6 +58,7 @@
 <script>
 import axios from 'axios';
 import Systems from '@/components/Systems.vue';
+import System from '@/components/System.vue';
 import AirChart from '@/components/Air.vue';
 import EquipmentChart from '@/components/Equipment.vue';
 
@@ -58,6 +66,7 @@ export default {
   name: 'Dashboard',
   components: {
     Systems,
+    System,
     AirChart,
     EquipmentChart,
   },
@@ -65,6 +74,9 @@ export default {
     return {
       enviros: [],
       enviro: [],
+      viewSystem: 'hide_element',
+      indexSystems: 'show_element',
+      system: 0,
       newSystem: {
         name: '',
         active: 0,
@@ -76,6 +88,15 @@ export default {
     };
   },
   methods: {
+    onClickSystem(value) {
+      this.system = value;
+      this.indexSystems = 'hide_element';
+      setTimeout(() => { this.viewSystem = 'show_element'; }, 500);
+    },
+    closeSystem() {
+      this.viewSystem = 'hide_element';
+      setTimeout(() => { this.indexSystems = 'show_element'; }, 1000);
+    },
     getEnviros() {
       const path = 'http://localhost:5000/enviros';
       axios.get(path)

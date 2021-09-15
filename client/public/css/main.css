@@ -100,7 +100,15 @@ li{
     text-align: center;
     border-radius: 15px;
     padding: 20px 30px;
-    font-size: 1.2em;
+    font-size: 1em;
+}
+
+
+.fade-enter-active, .fade-leave-active {
+    transition: opacity .5s;
+}
+.fade-enter, .fade-leave-to /* .fade-leave-active below version 2.1.8 */ {
+    opacity: 0;
 }
 
 li {
@@ -184,8 +192,7 @@ h1.title{
     margin: 10px;
 }
 h2 {
-    text-align: center;
-    margin:5px;
+    margin:0;
     font-weight:normal;
     font-size: 2.5em;
     font-family:arial;
@@ -193,17 +200,16 @@ h2 {
     -webkit-text-stroke-width: 1px;
     -webkit-text-stroke-color: #fff;
 }
-h2.date{
-    font-size:2em;
-}
 .nav_title {
     margin:2px;
     color: #418846;
     font-weight: normal;
 }
 
-select.multiple_select {
+.crop_select {
     background:none;
+    height: 300px;
+    width: 100%;
 }
 
 .cycles{
@@ -226,15 +232,114 @@ td > table {
     grid-row: 1 / span 3;
 }
 
+.card-large {
+    display: flex;
+    flex-direction: column;
+    grid-row: 1 / span 6;
+    grid-column: 2 / span 2;
+}
+
 .sys0, .sys1 { 
     grid-row: 1 / span2;
+    height: 400px;
 }
 
 .sys2, .sys3 { 
-    grid-row: 3 / span 2;
+    grid-row: 3 / span 3;
+    height: 400px;
 }
 
 .equip_chart {
     grid-column: 1;
     grid-row: 4 / span 2;
+}
+
+.Blue{
+    background-color: blue;
+}
+.Red{
+    background-color: red;
+}
+.Green{
+    background-color: rgb(11, 214, 11);
+}
+.Purple{
+    background-color: purple;
+}
+
+.tag-color {
+    width: 10px;
+    height: 23px;
+    display:block;
+    float:left;
+    clear:none;
+}
+
+.notifications_table {
+    text-align: left;
+    border: 1px solid rgb(236,236,236);
+    display:flex;
+    border-radius: 15px;
+    padding: 15px;
+    height: 160px;
+    margin-bottom: 5px;
+    clear: both;
+}
+
+.crops_table {
+    text-align: left;
+    clear:both;
+    border: 1px solid rgb(236,236,236);
+    border-radius: 15px;
+    padding: 15px;
+    height: 300px;
+    margin-bottom: 5px;
+    display: flex;
+}
+.front, .back {
+    width: 100%;
+}
+
+.show_element {
+    display: block;
+}
+
+.hide_element {
+    display: none;
+}
+
+h2.link {
+    cursor: pointer;
+    width: 60%;
+    float:left;
+    text-align: left;
+}
+
+.crops_list {
+    align-self: end;
+    width: 40%;
+    min-height: 300px;
+    margin-left: 10%;
+    font-size: 1.5em;
+}
+
+
+.slide-leave-active,
+.slide-enter-active {
+  transition: 1s;
+}
+.slide-enter {
+  transform: translate(105%, 0);
+}
+.slide-leave-to {
+  transform: translate(105%, 0);
+}
+.dashboard {
+    overflow:hidden;
+}
+.flex_row {
+    display:flex;
+}
+li {
+    list-style: none;
 }

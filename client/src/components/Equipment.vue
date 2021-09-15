@@ -9,6 +9,7 @@
 <script>
 import axios from 'axios';
 import VueApexCharts from 'vue-apexcharts';
+import moment from 'moment';
 
 export default {
   name: 'EquipmentChart',
@@ -37,6 +38,11 @@ export default {
         xaxis: {
           categories: ['Mon', 'Tue'],
         },
+        yaxis: {
+          title: {
+            text: 'Runtime in Minutes',
+          },
+        },
         fill: {
           opacity: 1,
         },
@@ -49,6 +55,9 @@ export default {
     };
   },
   methods: {
+    formatDate(date) {
+      return moment(date).format('ddd');
+    },
     getDailyEquipUsage() {
       const path = 'http://localhost:5000/equip_chart/1';
       axios.get(path)

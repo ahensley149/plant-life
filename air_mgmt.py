@@ -21,7 +21,7 @@ hour = int(hour)
 #host = settings['equipment']['air']['door']['host']
 #client = mqtt.Client('door')
 #client.connect(host)
-door = '/door/openclose'
+door = '/vent/openclose'
 door_open = 0
 
 #Base min and max humidity params
@@ -176,9 +176,6 @@ def check_air(inside_temp, outdoor_temp, outdoor_brightness, inside_humid, min_t
     tasks = [] #List to hold tasks decided on depending on the data
     temp_range = max_temp - min_temp
     
-    with open('status.json',) as status_file: #Load the current status of everything
-        status = json.load(status_file)
-    
 
     if inside_temp <= min_temp: 
         if outdoor_temp - 10 > inside_temp: #If it is much warmer outside, open the door and pull in the air to save on heating costs
@@ -211,7 +208,7 @@ def check_air(inside_temp, outdoor_temp, outdoor_brightness, inside_humid, min_t
             if inside_temp > max_temp + 4: #Last Resort kills the humidity but turns on the bottom ventilation fan
                 tasks.append('b-fan-on')
             else: #If the temp is less than max_temp + 2, turn the bottom fan back off to try to rebuild humidity
-                if status['bottom-fan']['status'] == 'on':
+                if settings['equipment']['air']['bottom-fan']['status'] == 'on':
                     tasks.append('b-fan-off')
                 
         if inside_humid <= min_humid:
@@ -250,111 +247,111 @@ def check_air(inside_temp, outdoor_temp, outdoor_brightness, inside_humid, min_t
     
     for task in tasks:
         if task == 'cooler-on':
-            if status['cooler']['status'] == 'off':
-                status['cooler']['status'] = 'on'
-                status['cooler']['last-on'] = timestamp
+            if settings['equipment']['air']['cooler']['status'] == 'off':
+                settings['equipment']['air']['cooler']['status'] = 'on'
+                settings['equipment']['air']['cooler']['last-on'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/swamp_cooler_on/with/key/beLHb8ZjZAJVzHxB1nSatB")
         elif task == 'cooler-off':
-            if status['cooler']['status'] == 'on':
-                status['cooler']['status'] = 'off'
-                status['cooler']['last-off'] = timestamp
+            if settings['equipment']['air']['cooler']['status'] == 'on':
+                settings['equipment']['air']['cooler']['status'] = 'off'
+                settings['equipment']['air']['cooler']['last-off'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/swamp_cooler_off/with/key/beLHb8ZjZAJVzHxB1nSatB")
-                add_equip_log(status['cooler'])
+                add_equip_log(settings['equipment']['air']['cooler'])
         elif task == 'humid-off':
-            if status['door']['status'] == 0:
-                if status['cooler']['status'] == 'on':
-                    status['cooler']['status'] = 'off'
-                    status['cooler']['last-off'] = timestamp
+            if settings['equipment']['air']['door']['status'] == 0:
+                if settings['equipment']['air']['cooler']['status'] == 'on':
+                    settings['equipment']['air']['cooler']['status'] = 'off'
+                    settings['equipment']['air']['cooler']['last-off'] = timestamp
                     requests.get(url = "https://maker.ifttt.com/trigger/swamp_cooler_off/with/key/beLHb8ZjZAJVzHxB1nSatB")
-                    add_equip_log(status['cooler'])
+                    add_equip_log(settings['equipment']['air']['cooler'])
         elif task == 'heater-on':
-            if status['heater']['status'] == 'off':
-                status['heater']['status'] = 'on'
-                status['heater']['last-on'] = timestamp
+            if settings['equipment']['air']['heater']['status'] == 'off':
+                settings['equipment']['air']['heater']['status'] = 'on'
+                settings['equipment']['air']['heater']['last-on'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/heater_on/with/key/beLHb8ZjZAJVzHxB1nSatB")
         elif task == 'heater-off':
-            if status['heater']['status'] == 'on':
-                status['heater']['status'] = 'off'
-                status['heater']['last-off'] = timestamp
+            if settings['equipment']['air']['heater']['status'] == 'on':
+                settings['equipment']['air']['heater']['status'] = 'off'
+                settings['equipment']['air']['heater']['last-off'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/heater_off/with/key/beLHb8ZjZAJVzHxB1nSatB")
-                add_equip_log(status['heater'])
+                add_equip_log(settings['equipment']['air']['heater'])
         elif task == 'b-fan-on':
-            if status['bottom-fan']['status'] == 'off':
-                status['bottom-fan']['status'] = 'on'
-                status['bottom-fan']['last-on'] = timestamp
+            if settings['equipment']['air']['bottom-fan']['status'] == 'off':
+                settings['equipment']['air']['bottom-fan']['status'] = 'on'
+                settings['equipment']['air']['bottom-fan']['last-on'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/bottom_fan_on/with/key/beLHb8ZjZAJVzHxB1nSatB")
         elif task == 'b-fan-off':
-            if status['bottom-fan']['status'] == 'on':
-                status['bottom-fan']['status'] = 'off'
-                status['bottom-fan']['last-off'] = timestamp
+            if settings['equipment']['air']['bottom-fan']['status'] == 'on':
+                settings['equipment']['air']['bottom-fan']['status'] = 'off'
+                settings['equipment']['air']['bottom-fan']['last-off'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/bottom_fan_off/with/key/beLHb8ZjZAJVzHxB1nSatB")
-                add_equip_log(status['bottom-fan'])
+                add_equip_log(settings['equipment']['air']['bottom-fan'])
         elif task == 'u-fan-on':
-            if status['upper-fan']['status'] == 'off':
-                status['upper-fan']['status'] = 'on'
-                status['upper-fan']['last-on'] = timestamp
+            if settings['equipment']['air']['upper-fan']['status'] == 'off':
+                settings['equipment']['air']['upper-fan']['status'] = 'on'
+                settings['equipment']['air']['upper-fan']['last-on'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/upper_fan_on/with/key/beLHb8ZjZAJVzHxB1nSatB")
         elif task == 'u-fan-off':
-            if status['upper-fan']['status'] == 'on':
-                status['upper-fan']['status'] = 'off'
-                status['upper-fan']['last-off'] = timestamp
+            if settings['equipment']['air']['upper-fan']['status'] == 'on':
+                settings['equipment']['air']['upper-fan']['status'] = 'off'
+                settings['equipment']['air']['upper-fan']['last-off'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/upper_fan_off/with/key/beLHb8ZjZAJVzHxB1nSatB")
-                add_equip_log(status['upper-fan'])
+                add_equip_log(settings['equipment']['air']['upper-fan'])
         elif task == 'circ-fan-on':
-            if status['circulation-fan']['status'] == 'off':
-                status['circulation-fan']['status'] = 'on'
-                status['circulation-fan']['last-on'] = timestamp
+            if settings['equipment']['air']['circulation-fan']['status'] == 'off':
+                settings['equipment']['air']['circulation-fan']['status'] = 'on'
+                settings['equipment']['air']['circulation-fan']['last-on'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/circulation_fan_on/with/key/beLHb8ZjZAJVzHxB1nSatB")
         elif task == 'circ-fan-off':
-            if status['circulation-fan']['status'] == 'on':
-                status['circulation-fan']['status'] = 'off'
-                status['circulation-fan']['last-off'] = timestamp
+            if settings['equipment']['air']['circulation-fan']['status'] == 'on':
+                settings['equipment']['air']['circulation-fan']['status'] = 'off'
+                settings['equipment']['air']['circulation-fan']['last-off'] = timestamp
                 requests.get(url = "https://maker.ifttt.com/trigger/circulation_fan_off/with/key/beLHb8ZjZAJVzHxB1nSatB")
-                add_equip_log(status['circulation-fan'])
+                add_equip_log(settings['equipment']['air']['circulation-fan'])
         elif task == 'door-0':
-            if status['door']['status'] != 0:
-                status['door']['status'] = 0
-                status['door']['last-close'] = timestamp
+            if settings['equipment']['air']['door']['status'] != 0:
+                settings['equipment']['air']['door']['status'] = 0
+                settings['equipment']['air']['door']['last-close'] = timestamp
                 #client.publish(door, door_open)
         elif task == 'door-1':
-            if status['door']['status'] == 1:
+            if settings['equipment']['air']['door']['status'] == 1:
                 pass
             else:
-                if status['door']['status'] == 0:
-                    status['door']['last-open'] = timestamp
-                door_open = (status['door']['status'] - 1) * -1
-                status['door']['status'] = 1
+                if settings['equipment']['air']['door']['status'] == 0:
+                    settings['equipment']['air']['door']['last-open'] = timestamp
+                door_open = (settings['equipment']['air']['door']['status'] - 1) * -1
+                settings['equipment']['air']['door']['status'] = 1
                 #client.publish(door, door_open)
         elif task == 'door-2':
-            if status['door']['status'] == 2:
+            if settings['equipment']['air']['door']['status'] == 2:
                 pass
             else:
-                if status['door']['status'] == 0:
-                    status['door']['last-open'] = timestamp
-                door_open = (status['door']['status'] - 2) * -1
-                status['door']['status'] = 2
+                if settings['equipment']['air']['door']['status'] == 0:
+                    settings['equipment']['air']['door']['last-open'] = timestamp
+                door_open = (settings['equipment']['air']['door']['status'] - 2) * -1
+                settings['equipment']['air']['door']['status'] = 2
                 #client.publish(door, door_open) 
         elif task == 'door-3':
-            if status['door']['status'] == 3:
+            if settings['equipment']['air']['door']['status'] == 3:
                 pass
             else:
-                if status['door']['status'] == 0:
-                    status['door']['last-open'] = timestamp
-                door_open = (status['door']['status'] - 3) * -1
-                status['door']['status'] = 3
+                if settings['equipment']['air']['door']['status'] == 0:
+                    settings['equipment']['air']['door']['last-open'] = timestamp
+                door_open = (settings['equipment']['air']['door']['status'] - 3) * -1
+                settings['equipment']['air']['door']['status'] = 3
                 #client.publish(door, door_open) 
         elif task == 'door-4':
-            if status['door']['status'] == 4:
+            if settings['equipment']['air']['door']['status'] == 4:
                 pass
             else:
-                if status['door']['status'] == 0:
-                    status['door']['last-open'] = timestamp
-                door_open = (status['door']['status'] - 4) * -1
-                status['door']['status'] = 2
+                if settings['equipment']['air']['door']['status'] == 0:
+                    settings['equipment']['air']['door']['last-open'] = timestamp
+                door_open = (settings['equipment']['air']['door']['status'] - 4) * -1
+                settings['equipment']['air']['door']['status'] = 2
                 #client.publish(door, door_open) 
                 
-    with open('status.json', 'w') as status_file:
-        json.dump(status, status_file)
+    with open('settings.json', 'w') as settings_file:
+        json.dump(settings, settings_file)
             
 outdoor_temp, outdoor_brightness = get_outdoor_weather()
 min_temp, max_temp = get_temp_limits(outdoor_temp)

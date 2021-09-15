@@ -8,12 +8,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root@localhost/plant_li
 db = SQLAlchemy(app)
 db.init_app(app)
 
-# Many to many association table for crops and plants
-crop_plants = db.Table('crop_plants',
-    db.Column('plant_id', db.Integer, db.ForeignKey('plant.id'), primary_key=True),
-    db.Column('crop_id', db.Integer, db.ForeignKey('crop.id'), primary_key=True)
-)
-
 class Enviro(db.Model):
     """Enviro is a container for everything in a given grow room or tent or closet. It stores the hygrometer api as well as
       temp and humidity settings and is the direct parent of System(db.Model) for controlling plants on different water tanks.
@@ -76,6 +70,7 @@ class System(db.Model):
     ideal_ec = db.Column(db.Integer, default=2)
     ph_variance = db.Column(db.Float, default=.5)
     ec_variance = db.Column(db.Float, default=.5)
+    water_tanks = db.relationship('WaterTank', backref='water_tank')
 
     def to_dict(self):
         return dict(id=self.id,
@@ -85,7 +80,8 @@ class System(db.Model):
           ideal_ec=self.ideal_ec,
           ph_variance=self.ph_variance,
           ec_variance=self.ec_variance,
-          enviro_id=self.enviro_id
+          enviro_id=self.enviro_id,
+          water_tanks=[water_tank.to_dict() for water_tank in self.water_tanks]
         )
 
 class WaterTank(db.Model):
@@ -95,10 +91,19 @@ class WaterTank(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     system_id = db.Column(db.Integer, db.ForeignKey('system.id'))
     capacity = db.Column(db.Integer, default=0)
-    valve_in = db.Column(db.Integer, default=0)
-    valve_out = db.Column(db.Integer, default=0)
+    valve_in = db.Column(db.Integer, nullable=True)
+    valve_out = db.Column(db.Integer, nullable=True)
     pump = db.Column(db.String(50))
     water_level_sensor = db.Column(db.String(255))
+    last_cleaned = db.Column(db.Date)
+
+    def to_dict(self):
+        return dict(id=self.id,
+          capacity=self.capacity,
+          valve_in=self.valve_in,
+          valve_out=self.valve_out,
+          pump=self.pump
+        )
 
 class Schedule(db.Model):
     """Controls the cycle times and durations of watering and other recurring events,
@@ -155,20 +160,47 @@ class Crop(db.Model):
       keeping all the crop data stored for future analysis
     """
     id = db.Column(db.Integer, primary_key=True)
-    color = db.Column(db.String(15))
+    tag = db.Column(db.String(15))
     system_id = db.Column(db.Integer, db.ForeignKey('system.id'))
     plant_id = db.Column(db.Integer, db.ForeignKey('plant.id'))
-    started_as = db.Column(db.String(20), default='Seed')
-    plant_date = db.Column(db.Date, nullable=True)
+    source = db.Column(db.String(20))
+    start_date = db.Column(db.Date, nullable=True)
     germ_date = db.Column(db.Date, nullable=True)
     transplant_date = db.Column(db.Date, nullable=True)
     flower_date = db.Column(db.Date, nullable=True)
     harvested_date = db.Column(db.Date, nullable=True)
-    harvest_rating = db.Column(db.Integer, default=0)
-    harvest_note = db.Column(db.Text)
+    harvest_rating = db.Column(db.Integer, nullable=True)
+    summary = db.Column(db.Text, nullable=True)
+    died = db.Column(db.Date, nullable=True)
     logs = db.relationship('Log', backref='log')
-    plants = db.relationship('Plant', secondary='crop_plants',
-        backref=db.backref('plant', lazy=True))
+    milestones = db.relationship('CropMilestone', backref='crop_milestone')
+    plant = db.relationship('Plant', backref='plant', lazy=True)
+
+    def to_dict(self):
+        return dict(id=self.id,
+          tag=self.tag,
+          source=self.source,
+          system_id=self.system_id,
+          plant_id=self.plant_id,
+          start_date=self.start_date,
+          germ_date=self.germ_date,
+          transplant_date=self.transplant_date,
+          flower_date=self.flower_date,
+          harvested_date=self.harvested_date,
+          harvest_rating=self.harvest_rating,
+          summary=self.summary,
+          died=self.died,
+          milestones = [milestone.to_dict() for milestone in self.milestones],
+          plant = [self.plant.to_dict()]
+        )
+
+class PlantCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False)
+    def to_dict(self):
+        return dict(id=self.id,
+          name=self.name
+        )
 
 class Plant(db.Model):
     """Stores Plant profiles containing pertinent plant information to 
@@ -177,7 +209,7 @@ class Plant(db.Model):
     """
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
+    category = db.Column(db.Integer, db.ForeignKey('plant_category.id'))
     germ_time = db.Column(db.Integer)
     transplant_time = db.Column(db.Integer)
     flower_time = db.Column(db.Integer)
@@ -230,6 +262,15 @@ class Water(db.Model):
     ec = db.Column(db.Float, nullable=True)
     temp = db.Column(db.Float, nullable=True)
 
+    def to_dict(self):
+        return dict(id=self.id,
+          system_id=self.system_id,
+          timestamp=self.timestamp,
+          ph=self.ph,
+          ec=self.ec,
+          temp=self.temp
+        )
+
     def __repr__(self):
         return '<Water %r>' % self.id
 
@@ -238,11 +279,59 @@ class Light(db.Model):
       Also if you have a hygrometer with built in light sensor or standalone can store brightness.
     """
     id = db.Column(db.Integer, primary_key=True)
-    enviro_id = db.Column(db.String(50), nullable=False)
+    system_id = db.Column(db.Integer, db.ForeignKey('system.id'))
     type = db.Column(db.String(100))
     start_time = db.Column(db.DateTime)
     end_time = db.Column(db.DateTime)
     intensity = db.Column(db.Integer, nullable=True)
 
-    def __repr__(self):
-        return '<Light %r>' % self.id
+    def to_dict(self):
+        return dict(id=self.id,
+          type=self.type,
+          start=self.start_time
+        )
+
+class CropMilestone(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    crop_id = db.Column(db.Integer, db.ForeignKey('crop.id'))
+    plant_name = db.Column(db.String(50))
+    plant_id = db.Column(db.Integer, db.ForeignKey('plant.id'))
+    tag = db.Column(db.String(20))
+    projected_date = db.Column(db.Date())
+    milestone = db.Column(db.String(50))
+    actual_date = db.Column(db.Date, nullable=True)
+
+    def to_dict(self):
+        return dict(id=self.id,
+          plant=self.plant_name,
+          projected_date=self.projected_date,
+          milestone=self.milestone,
+          actual_date=self.actual_date,
+          tag=self.tag
+        )
+
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    crop_id = db.Column(db.Integer, db.ForeignKey('crop.id'))
+    system_id = db.Column(db.Integer, db.ForeignKey('system.id'))
+    enviro_id = db.Column(db.Integer, db.ForeignKey('enviro.id'))
+    date = db.Column(db.Date)
+    task = db.Column(db.String(255))
+    completed = db.Column(db.Date)
+    priority = db.Column(db.Integer)
+
+    def to_dict(self):
+        return dict(id=self.id,
+          crop_id=self.crop_id,
+          system_id=self.system_id,
+          enviro_id=self.enviro_id,
+          date=self.date,
+          task=self.task
+        )
+
+class Alert(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    silenced = db.Column(db.Integer, default=0)
+    date = db.Column(db.DateTime)
+    alert = db.Column(db.String(255))
+    priority = db.Column(db.Integer)
